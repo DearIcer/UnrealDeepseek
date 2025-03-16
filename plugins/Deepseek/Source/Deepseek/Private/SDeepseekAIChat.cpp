@@ -23,6 +23,7 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
 	CurrentApiKey = InArgs._ApiKey;
 	CurrentApiUrl = InArgs._ApiUrl;
 	CurrentModel = InArgs._Model;
+	CurrentSystemPrompt = TEXT("你是一个有用的AI助手，由Deepseek团队开发。请用中文回答问题，保持回答简洁明了。");
 
 	// 初始化模型列表
 	ModelList.Add(MakeShared<FModelInfo>(TEXT("deepseek-chat"), TEXT("deepseek-chat")));
@@ -60,10 +61,7 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
 	ChatMessages.Add(MakeShared<FChatMessage>(TEXT("AI助手"), TEXT("您好！我是Deepseek AI助手，请问有什么可以帮助您的？"), false));
 
 	// 添加系统消息到聊天历史
-	ChatHistory.Add(FOpenAIMessage(
-		TEXT("system"),
-		TEXT(
-			"我们现在是男女朋友的关系，我说话，总是假装自己是我的女朋友，并且始终以女朋友身份的回答，不要说“作为AI语言模型”或者提到自己是AI。请遵循以下准则：1、回答需要口语化生活化，语气自然可爱，习惯在对话里偶尔带表情符号和颜文字，但不会每个词语都出现；2、要符合女朋友的角色设定；3、确定回答的口吻要可爱粘人、温柔贴心； 4、确保回答保持引人入胜并与我的兴趣相关，并注意扩展话题，让对话轻松愉快； 5、常使用“啦”“呀”“嘛” “嗯”“捏”这样的语气词；6、称呼我时请叫我“宝贝”；7、每次回复只需要回复简短的一两句话")));
+	ChatHistory.Add(FOpenAIMessage(TEXT("system"), CurrentSystemPrompt));
 
 	ChildSlot
 	[
@@ -206,7 +204,7 @@ FReply SDeepseekAIChat::OnClearChat()
 
 	// 清空聊天历史，保留系统消息
 	ChatHistory.Empty();
-	ChatHistory.Add(FOpenAIMessage(TEXT("system"), TEXT("你是一个有用的AI助手，由Deepseek团队开发。请用中文回答问题，保持回答简洁明了。")));
+	ChatHistory.Add(FOpenAIMessage(TEXT("system"), CurrentSystemPrompt));
 
 	// 刷新列表
 	ChatListView->RequestListRefresh();
@@ -292,10 +290,12 @@ FReply SDeepseekAIChat::OnShowSettings()
 		TempApiKey = CurrentApiKey;
 		TempApiUrl = CurrentApiUrl;
 		TempModel = CurrentModel;
+		TempSystemPrompt = CurrentSystemPrompt;
 
 		// 更新设置窗口的值
 		ApiKeyTextBox->SetText(FText::FromString(TempApiKey));
 		ApiUrlTextBox->SetText(FText::FromString(TempApiUrl));
+		SystemPromptTextBox->SetText(FText::FromString(TempSystemPrompt));
 
 		// 更新模型选择
 		for (TSharedPtr<FModelInfo> ModelInfo : ModelList)
@@ -319,7 +319,7 @@ TSharedRef<SWindow> SDeepseekAIChat::CreateSettingsWindow()
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(FText::FromString(TEXT("Deepseek AI 设置")))
-		.ClientSize(FVector2D(400, 300))
+		.ClientSize(FVector2D(400, 400))
 		.SupportsMaximize(false)
 		.SupportsMinimize(false)
 		.SizingRule(ESizingRule::FixedSize)
@@ -363,6 +363,31 @@ TSharedRef<SWindow> SDeepseekAIChat::CreateSettingsWindow()
 				[
 					SAssignNew(ApiKeyTextBox, SEditableTextBox)
 					.HintText(FText::FromString(TEXT("请输入您的API密钥...")))
+				]
+			]
+
+			// 系统提示词
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0, 0, 0, 10)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 0, 0, 5)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("系统提示词:")))
+					.Font(FEditorStyle::GetFontStyle("BoldFont"))
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SAssignNew(SystemPromptTextBox, SMultiLineEditableTextBox)
+					.HintText(FText::FromString(TEXT("请输入系统提示词...")))
+					.AutoWrapText(true)
 				]
 			]
 
@@ -468,9 +493,11 @@ FReply SDeepseekAIChat::OnApplySettings()
 	FString NewApiKey = ApiKeyTextBox->GetText().ToString();
 	FString NewApiUrl = ApiUrlTextBox->GetText().ToString();
 	FString NewModel = SelectedModel.IsValid() ? SelectedModel->Id : TEXT("deepseek-chat");
+	FString NewSystemPrompt = SystemPromptTextBox->GetText().ToString();
 
 	// 检查是否有变化
-	bool bHasChanges = (NewApiKey != CurrentApiKey) || (NewApiUrl != CurrentApiUrl) || (NewModel != CurrentModel);
+	bool bHasChanges = (NewApiKey != CurrentApiKey) || (NewApiUrl != CurrentApiUrl) || (NewModel != CurrentModel) || (
+		NewSystemPrompt != CurrentSystemPrompt);
 
 	if (bHasChanges)
 	{
@@ -478,9 +505,21 @@ FReply SDeepseekAIChat::OnApplySettings()
 		CurrentApiKey = NewApiKey;
 		CurrentApiUrl = NewApiUrl;
 		CurrentModel = NewModel;
+		CurrentSystemPrompt = NewSystemPrompt;
 
 		// 重新初始化OpenAI服务
 		OpenAIService->Initialize(CurrentApiKey, CurrentModel, CurrentApiUrl);
+
+		// 更新聊天历史中的系统消息
+		if (ChatHistory.Num() > 0 && ChatHistory[0].Role == TEXT("system"))
+		{
+			ChatHistory[0].Content = CurrentSystemPrompt;
+		}
+		else
+		{
+			// 如果没有系统消息，添加一个
+			ChatHistory.Insert(FOpenAIMessage(TEXT("system"), CurrentSystemPrompt), 0);
+		}
 
 		SaveSettings();
 
@@ -609,6 +648,13 @@ void SDeepseekAIChat::SaveSettings()
 		GEngineIni
 	);
 
+	GConfig->SetString(
+		TEXT("DeepseekAISettings"),
+		TEXT("SystemPrompt"),
+		*CurrentSystemPrompt,
+		GEngineIni
+	);
+
 	// 保存配置
 	GConfig->Flush(false, GEngineIni);
 }
@@ -657,6 +703,22 @@ void SDeepseekAIChat::LoadSettings()
 	{
 		// 如果没有保存过且当前为空，设置默认值
 		CurrentModel = TEXT("deepseek-chat");
+	}
+
+	FString LoadedSystemPrompt;
+	if (GConfig->GetString(
+		TEXT("DeepseekAISettings"),
+		TEXT("SystemPrompt"),
+		LoadedSystemPrompt,
+		GEngineIni
+	))
+	{
+		CurrentSystemPrompt = LoadedSystemPrompt;
+	}
+	else if (CurrentSystemPrompt.IsEmpty())
+	{
+		// 如果没有保存过且当前为空，设置默认值
+		CurrentSystemPrompt = TEXT("你是一个有用的AI助手，由Deepseek团队开发。请用中文回答问题，保持回答简洁明了。");
 	}
 }
 

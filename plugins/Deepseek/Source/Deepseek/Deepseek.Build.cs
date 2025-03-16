@@ -25,7 +25,7 @@ public class Deepseek : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "JsonUtilities", "JsonUtilities",
+				"Core", "JsonUtilities", "JsonUtilities", "Slate",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

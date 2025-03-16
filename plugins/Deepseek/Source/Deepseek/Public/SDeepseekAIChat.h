@@ -8,6 +8,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/SWindow.h"
 #include "DeepseekOpenAIService.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 /**
  * 聊天消息结构体
@@ -164,4 +165,14 @@ private:
 
     /** 当前模型 */
     FString CurrentModel;
+
+    
+    /** 当前系统提示词 */
+    FString CurrentSystemPrompt;
+
+    /** 临时系统提示词 */
+    FString TempSystemPrompt;
+
+    /** 系统提示词输入框 */
+    TSharedPtr<SMultiLineEditableTextBox> SystemPromptTextBox;
 }; 

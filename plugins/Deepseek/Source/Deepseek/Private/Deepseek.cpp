@@ -14,8 +14,8 @@
 
 static const FName DeepseekTabName("Deepseek");
 
-// 在这里设置您的OpenAI API密钥
-static const FString OpenAIApiKey = TEXT("xxxxxxxxxxxxxxxxx");
+// 在这里设置你的OpenAI API密钥
+static const FString OpenAIApiKey = TEXT("sk-823c4c63ef214db79df81e9a310002e9");
 static const FString OpenAIModel = TEXT("deepseek-chat");
 
 #define LOCTEXT_NAMESPACE "FDeepseekModule"
