@@ -98,6 +98,15 @@ private:
     /** 设置窗口关闭回调 */
     void OnSettingsWindowClosed(const TSharedRef<SWindow>& Window);
 
+    /** 保存设置到配置文件 */
+    void SaveSettings();
+
+    /** 从配置文件加载设置 */
+    void LoadSettings();
+
+    /** 配置文件名 */
+    static const FString ConfigFileName;
+
 private:
     /** 聊天消息列表 */
     TArray<TSharedPtr<FChatMessage>> ChatMessages;
