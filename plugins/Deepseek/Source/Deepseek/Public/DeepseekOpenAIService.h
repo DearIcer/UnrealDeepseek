@@ -63,7 +63,7 @@ public:
 	~FDeepseekOpenAIService();
 
 	/** 初始化服务 */
-	void Initialize(const FString& InApiKey, const FString& InModel = TEXT("deepseek-chat"));
+	void Initialize(const FString& InApiKey, const FString& InModel = TEXT("deepseek-chat"), const FString& InApiUrl = TEXT("https://api.deepseek.com/chat/completions"));
 
 	/** 发送聊天请求 */
 	void SendChatRequest(const TArray<FOpenAIMessage>& Messages, TFunction<void(const FString&, bool)> OnCompleted);
@@ -82,6 +82,9 @@ private:
 	/** 模型名称 */
 	FString Model;
 
+	/** API地址 */
+	FString ApiUrl;
+
 	/** HTTP请求模块 */
 	FHttpModule* HttpModule;
-}; 
+};

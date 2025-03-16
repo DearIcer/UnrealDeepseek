@@ -43,8 +43,8 @@ class DEEPSEEK_API SDeepseekAIChat : public SCompoundWidget
 public:
     SLATE_BEGIN_ARGS(SDeepseekAIChat)
         : _ApiKey("")
-        , _ApiUrl("https://api.openai.com/v1/chat/completions")
-        , _Model("gpt-3.5-turbo")
+        , _ApiUrl("https://api.deepseek.com/chat/completions")
+        , _Model("deepseek-chat")
     {}
         SLATE_ARGUMENT(FString, ApiKey)
         SLATE_ARGUMENT(FString, ApiUrl)

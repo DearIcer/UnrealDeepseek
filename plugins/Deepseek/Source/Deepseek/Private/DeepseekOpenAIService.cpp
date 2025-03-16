@@ -12,10 +12,11 @@ FDeepseekOpenAIService::~FDeepseekOpenAIService()
 {
 }
 
-void FDeepseekOpenAIService::Initialize(const FString& InApiKey, const FString& InModel)
+void FDeepseekOpenAIService::Initialize(const FString& InApiKey, const FString& InModel, const FString& InApiUrl)
 {
     ApiKey = InApiKey;
     Model = InModel;
+    ApiUrl = InApiUrl;
 }
 
 void FDeepseekOpenAIService::SendChatRequest(const TArray<FOpenAIMessage>& Messages, TFunction<void(const FString&, bool)> OnCompleted)
@@ -26,10 +27,16 @@ void FDeepseekOpenAIService::SendChatRequest(const TArray<FOpenAIMessage>& Messa
         return;
     }
 
+    if (ApiUrl.IsEmpty())
+    {
+        OnCompleted(TEXT("API地址未设置"), false);
+        return;
+    }
+
     // 创建HTTP请求
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
     HttpRequest->SetVerb(TEXT("POST"));
-    HttpRequest->SetURL(TEXT("https://api.deepseek.com/chat/completions"));
+    HttpRequest->SetURL(ApiUrl);
     HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *ApiKey));
 
@@ -70,6 +77,7 @@ void FDeepseekOpenAIService::SendChatRequest(const TArray<FOpenAIMessage>& Messa
             this->HandleResponse(Response, bWasSuccessful, *SharedOnCompleted);
         }
     );
+
     // 发送请求
     HttpRequest->ProcessRequest();
 }
