@@ -6,6 +6,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/SWindow.h"
 #include "DeepseekOpenAIService.h"
 
 /**
@@ -76,20 +77,26 @@ private:
     /** 移除等待消息 */
     void RemoveWaitingMessage();
 
-    /** 显示设置面板 */
+    /** 显示设置窗口 */
     FReply OnShowSettings();
 
-    /** 隐藏设置面板 */
-    FReply OnHideSettings();
+    /** 创建设置窗口 */
+    TSharedRef<SWindow> CreateSettingsWindow();
 
     /** 应用设置 */
     FReply OnApplySettings();
+
+    /** 取消设置 */
+    FReply OnCancelSettings();
 
     /** 模型选择改变回调 */
     void OnModelSelectionChanged(TSharedPtr<FModelInfo> NewSelection, ESelectInfo::Type SelectInfo);
 
     /** 生成模型选择项 */
     TSharedRef<SWidget> GenerateModelComboItem(TSharedPtr<FModelInfo> InItem);
+
+    /** 设置窗口关闭回调 */
+    void OnSettingsWindowClosed(const TSharedRef<SWindow>& Window);
 
 private:
     /** 聊天消息列表 */
@@ -113,11 +120,8 @@ private:
     /** 等待消息的索引 */
     int32 WaitingMessageIndex;
 
-    /** 设置面板 */
-    TSharedPtr<SWidget> SettingsPanel;
-
-    /** 是否显示设置面板 */
-    bool bShowSettings;
+    /** 设置窗口 */
+    TSharedPtr<SWindow> SettingsWindow;
 
     /** API密钥输入框 */
     TSharedPtr<SEditableTextBox> ApiKeyTextBox;
@@ -133,6 +137,15 @@ private:
 
     /** 当前选择的模型 */
     TSharedPtr<FModelInfo> SelectedModel;
+
+    /** 临时API密钥 */
+    FString TempApiKey;
+
+    /** 临时API地址 */
+    FString TempApiUrl;
+
+    /** 临时模型 */
+    FString TempModel;
 
     /** 当前API密钥 */
     FString CurrentApiKey;

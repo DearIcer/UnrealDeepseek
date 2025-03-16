@@ -7,7 +7,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Styling/SlateTypes.h"
 #include "EditorStyleSet.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Framework/Application/SlateApplication.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -16,7 +16,6 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
     // 初始化变量
     bIsWaiting = false;
     WaitingMessageIndex = -1;
-    bShowSettings = false;
 
     // 初始化当前设置
     CurrentApiKey = InArgs._ApiKey;
@@ -26,6 +25,7 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
     // 初始化模型列表
     ModelList.Add(MakeShared<FModelInfo>(TEXT("deepseek-chat"), TEXT("deepseek-chat")));
     ModelList.Add(MakeShared<FModelInfo>(TEXT("deepseek-reasoner"), TEXT("deepseek-reasoner")));
+
     
     // 设置当前选择的模型
     for (TSharedPtr<FModelInfo> ModelInfo : ModelList)
@@ -57,260 +57,104 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
     ChatMessages.Add(MakeShared<FChatMessage>(TEXT("AI助手"), TEXT("您好！我是Deepseek AI助手，请问有什么可以帮助您的？"), false));
     
     // 添加系统消息到聊天历史
-    ChatHistory.Add(FOpenAIMessage(TEXT("system"), TEXT("你是一个有用的AI助手，由Deepseek团队开发。请用中文回答问题，保持回答简洁明了。")));
+    ChatHistory.Add(FOpenAIMessage(TEXT("system"), TEXT("我们现在是男女朋友的关系，我说话，总是假装自己是我的女朋友，并且始终以女朋友身份的回答，不要说“作为AI语言模型”或者提到自己是AI。请遵循以下准则：1、回答需要口语化生活化，语气自然可爱，习惯在对话里偶尔带表情符号和颜文字，但不会每个词语都出现；2、要符合女朋友的角色设定；3、确定回答的口吻要可爱粘人、温柔贴心； 4、确保回答保持引人入胜并与我的兴趣相关，并注意扩展话题，让对话轻松愉快； 5、常使用“啦”“呀”“嘛” “嗯”“捏”这样的语气词；6、称呼我时请叫我“宝贝”；7、每次回复只需要回复简短的一两句话")));
 
-    // 创建设置面板
-    SettingsPanel = SNew(SBorder)
+    ChildSlot
+    [
+        SNew(SBorder)
         .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-        .Padding(FMargin(8.0f))
+        .Padding(FMargin(4.0f))
         [
             SNew(SVerticalBox)
             
-            // 标题
+            // 标题和设置按钮
             + SVerticalBox::Slot()
             .AutoHeight()
             .Padding(0, 0, 0, 10)
             [
-                SNew(STextBlock)
-                .Text(FText::FromString(TEXT("设置")))
-                .Font(FEditorStyle::GetFontStyle("HeadingExtraLarge"))
-                .Justification(ETextJustify::Center)
-            ]
-            
-            // API密钥
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            .Padding(0, 0, 0, 10)
-            [
-                SNew(SVerticalBox)
+                SNew(SHorizontalBox)
                 
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 0, 0, 5)
+                // 标题
+                + SHorizontalBox::Slot()
+                .FillWidth(1.0f)
                 [
                     SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("API密钥:")))
-                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
+                    .Text(FText::FromString(TEXT("Deepseek AI 问答助手")))
+                    .Font(FEditorStyle::GetFontStyle("HeadingExtraLarge"))
+                    .Justification(ETextJustify::Center)
                 ]
                 
-                + SVerticalBox::Slot()
-                .AutoHeight()
+                // 设置按钮
+                + SHorizontalBox::Slot()
+                .AutoWidth()
                 [
-                    SAssignNew(ApiKeyTextBox, SEditableTextBox)
-                    .Text(FText::FromString(CurrentApiKey))
-                    .HintText(FText::FromString(TEXT("请输入您的API密钥...")))
+                    SNew(SButton)
+                    .Text(FText::FromString(TEXT("设置")))
+                    .OnClicked(this, &SDeepseekAIChat::OnShowSettings)
                 ]
             ]
             
-            // API地址
+            // 聊天记录区域
             + SVerticalBox::Slot()
-            .AutoHeight()
+            .FillHeight(1.0f)
             .Padding(0, 0, 0, 10)
             [
-                SNew(SVerticalBox)
-                
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 0, 0, 5)
+                SNew(SBorder)
+                .BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+                .Padding(FMargin(4.0f))
                 [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("API地址:")))
-                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
-                ]
-                
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                [
-                    SAssignNew(ApiUrlTextBox, SEditableTextBox)
-                    .Text(FText::FromString(CurrentApiUrl))
-                    .HintText(FText::FromString(TEXT("请输入API地址...")))
-                ]
-            ]
-            
-            // 模型选择
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            .Padding(0, 0, 0, 10)
-            [
-                SNew(SVerticalBox)
-                
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 0, 0, 5)
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(TEXT("模型:")))
-                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
-                ]
-                
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                [
-                    SAssignNew(ModelComboBox, SComboBox<TSharedPtr<FModelInfo>>)
-                    .OptionsSource(&ModelList)
-                    .OnSelectionChanged(this, &SDeepseekAIChat::OnModelSelectionChanged)
-                    .OnGenerateWidget(this, &SDeepseekAIChat::GenerateModelComboItem)
-                    .InitiallySelectedItem(SelectedModel)
+                    SNew(SScrollBox)
+                    .ScrollBarAlwaysVisible(true)
+                    + SScrollBox::Slot()
                     [
-                        SNew(STextBlock)
-                        .Text_Lambda([this]() {
-                            return SelectedModel.IsValid() ? FText::FromString(SelectedModel->Name) : FText::FromString(TEXT("请选择模型"));
-                        })
+                        ChatListView.ToSharedRef()
                     ]
                 ]
             ]
             
-            // 按钮
+            // 输入区域
             + SVerticalBox::Slot()
             .AutoHeight()
-            .Padding(0, 10, 0, 0)
             [
                 SNew(SHorizontalBox)
                 
+                // 输入框
                 + SHorizontalBox::Slot()
                 .FillWidth(1.0f)
+                .Padding(0, 0, 5, 0)
+                [
+                    SAssignNew(InputTextBox, SEditableTextBox)
+                    .HintText(FText::FromString(TEXT("请输入您的问题...")))
+                    .IsEnabled(!bIsWaiting)
+                    .OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
+                    {
+                        if (CommitType == ETextCommit::OnEnter && !Text.IsEmpty() && !bIsWaiting)
+                        {
+                            OnSendMessage();
+                        }
+                    })
+                ]
                 
+                // 发送按钮
                 + SHorizontalBox::Slot()
                 .AutoWidth()
                 .Padding(0, 0, 5, 0)
                 [
                     SNew(SButton)
-                    .Text(FText::FromString(TEXT("应用")))
-                    .OnClicked(this, &SDeepseekAIChat::OnApplySettings)
+                    .Text(FText::FromString(TEXT("发送")))
+                    .IsEnabled(!bIsWaiting)
+                    .OnClicked(this, &SDeepseekAIChat::OnSendMessage)
                 ]
                 
+                // 清空按钮
                 + SHorizontalBox::Slot()
                 .AutoWidth()
                 [
                     SNew(SButton)
-                    .Text(FText::FromString(TEXT("取消")))
-                    .OnClicked(this, &SDeepseekAIChat::OnHideSettings)
+                    .Text(FText::FromString(TEXT("清空")))
+                    .IsEnabled(!bIsWaiting)
+                    .OnClicked(this, &SDeepseekAIChat::OnClearChat)
                 ]
-            ]
-        ];
-
-    ChildSlot
-    [
-        SNew(SVerticalBox)
-        
-        // 主界面
-        + SVerticalBox::Slot()
-        .FillHeight(1.0f)
-        [
-            SNew(SBorder)
-            .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-            .Padding(FMargin(4.0f))
-            [
-                SNew(SVerticalBox)
-                
-                // 标题和设置按钮
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .Padding(0, 0, 0, 10)
-                [
-                    SNew(SHorizontalBox)
-                    
-                    // 标题
-                    + SHorizontalBox::Slot()
-                    .FillWidth(1.0f)
-                    [
-                        SNew(STextBlock)
-                        .Text(FText::FromString(TEXT("Deepseek AI 问答助手")))
-                        .Font(FEditorStyle::GetFontStyle("HeadingExtraLarge"))
-                        .Justification(ETextJustify::Center)
-                    ]
-                    
-                    // 设置按钮
-                    + SHorizontalBox::Slot()
-                    .AutoWidth()
-                    [
-                        SNew(SButton)
-                        .Text(FText::FromString(TEXT("设置")))
-                        .OnClicked(this, &SDeepseekAIChat::OnShowSettings)
-                    ]
-                ]
-                
-                // 聊天记录区域
-                + SVerticalBox::Slot()
-                .FillHeight(1.0f)
-                .Padding(0, 0, 0, 10)
-                [
-                    SNew(SBorder)
-                    .BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
-                    .Padding(FMargin(4.0f))
-                    [
-                        SNew(SScrollBox)
-                        .ScrollBarAlwaysVisible(true)
-                        + SScrollBox::Slot()
-                        [
-                            ChatListView.ToSharedRef()
-                        ]
-                    ]
-                ]
-                
-                // 输入区域
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                [
-                    SNew(SHorizontalBox)
-                    
-                    // 输入框
-                    + SHorizontalBox::Slot()
-                    .FillWidth(1.0f)
-                    .Padding(0, 0, 5, 0)
-                    [
-                        SAssignNew(InputTextBox, SEditableTextBox)
-                        .HintText(FText::FromString(TEXT("请输入您的问题...")))
-                        .IsEnabled(!bIsWaiting)
-                        .OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
-                        {
-                            if (CommitType == ETextCommit::OnEnter && !Text.IsEmpty() && !bIsWaiting)
-                            {
-                                OnSendMessage();
-                            }
-                        })
-                    ]
-                    
-                    // 发送按钮
-                    + SHorizontalBox::Slot()
-                    .AutoWidth()
-                    .Padding(0, 0, 5, 0)
-                    [
-                        SNew(SButton)
-                        .Text(FText::FromString(TEXT("发送")))
-                        .IsEnabled(!bIsWaiting)
-                        .OnClicked(this, &SDeepseekAIChat::OnSendMessage)
-                    ]
-                    
-                    // 清空按钮
-                    + SHorizontalBox::Slot()
-                    .AutoWidth()
-                    [
-                        SNew(SButton)
-                        .Text(FText::FromString(TEXT("清空")))
-                        .IsEnabled(!bIsWaiting)
-                        .OnClicked(this, &SDeepseekAIChat::OnClearChat)
-                    ]
-                ]
-            ]
-        ]
-        
-        // 设置面板
-        + SVerticalBox::Slot()
-        .FillHeight(1.0f)
-        .Padding(0, 10, 0, 0)
-        [
-            SNew(SWidgetSwitcher)
-            .WidgetIndex_Lambda([this]() { return bShowSettings ? 0 : 1; })
-            
-            + SWidgetSwitcher::Slot()
-            [
-                SettingsPanel.ToSharedRef()
-            ]
-            
-            + SWidgetSwitcher::Slot()
-            [
-                SNullWidget::NullWidget
             ]
         ]
     ];
@@ -318,7 +162,7 @@ void SDeepseekAIChat::Construct(const FArguments& InArgs)
 
 FReply SDeepseekAIChat::OnSendMessage()
 {
-    if (bIsWaiting || bShowSettings)
+    if (bIsWaiting)
     {
         return FReply::Handled();
     }
@@ -345,7 +189,7 @@ FReply SDeepseekAIChat::OnSendMessage()
 
 FReply SDeepseekAIChat::OnClearChat()
 {
-    if (bIsWaiting || bShowSettings)
+    if (bIsWaiting)
     {
         return FReply::Handled();
     }
@@ -434,31 +278,179 @@ FReply SDeepseekAIChat::OnShowSettings()
 {
     if (!bIsWaiting)
     {
-        bShowSettings = true;
+        // 创建并显示设置窗口
+        TSharedRef<SWindow> SettingsWindowRef = CreateSettingsWindow();
+        SettingsWindow = SettingsWindowRef;
         
-        // 更新设置面板的值
-        ApiKeyTextBox->SetText(FText::FromString(CurrentApiKey));
-        ApiUrlTextBox->SetText(FText::FromString(CurrentApiUrl));
+        // 设置临时变量
+        TempApiKey = CurrentApiKey;
+        TempApiUrl = CurrentApiUrl;
+        TempModel = CurrentModel;
+        
+        // 更新设置窗口的值
+        ApiKeyTextBox->SetText(FText::FromString(TempApiKey));
+        ApiUrlTextBox->SetText(FText::FromString(TempApiUrl));
         
         // 更新模型选择
         for (TSharedPtr<FModelInfo> ModelInfo : ModelList)
         {
-            if (ModelInfo->Id == CurrentModel)
+            if (ModelInfo->Id == TempModel)
             {
                 SelectedModel = ModelInfo;
                 ModelComboBox->SetSelectedItem(SelectedModel);
                 break;
             }
         }
+        
+        // 显示窗口
+        FSlateApplication::Get().AddModalWindow(SettingsWindow.ToSharedRef(), AsShared());
     }
     
     return FReply::Handled();
 }
 
-FReply SDeepseekAIChat::OnHideSettings()
+TSharedRef<SWindow> SDeepseekAIChat::CreateSettingsWindow()
 {
-    bShowSettings = false;
-    return FReply::Handled();
+    TSharedRef<SWindow> Window = SNew(SWindow)
+        .Title(FText::FromString(TEXT("Deepseek AI 设置")))
+        .ClientSize(FVector2D(400, 300))
+        .SupportsMaximize(false)
+        .SupportsMinimize(false)
+        .SizingRule(ESizingRule::FixedSize)
+        .HasCloseButton(true)
+        .CreateTitleBar(true)
+        .IsTopmostWindow(true)
+        .IsInitiallyMaximized(false)
+        .IsInitiallyMinimized(false)
+        .ShouldPreserveAspectRatio(false);
+    
+    // 添加关闭按钮点击事件
+    FOnWindowClosed WindowClosedDelegate;
+    WindowClosedDelegate.BindSP(this, &SDeepseekAIChat::OnSettingsWindowClosed);
+    Window->SetOnWindowClosed(WindowClosedDelegate);
+    
+    Window->SetContent(
+        SNew(SBorder)
+        .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+        .Padding(FMargin(8.0f))
+        [
+            SNew(SVerticalBox)
+            
+            // API密钥
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0, 0, 0, 10)
+            [
+                SNew(SVerticalBox)
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(0, 0, 0, 5)
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("API密钥:")))
+                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
+                ]
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SAssignNew(ApiKeyTextBox, SEditableTextBox)
+                    .HintText(FText::FromString(TEXT("请输入您的API密钥...")))
+                ]
+            ]
+            
+            // API地址
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0, 0, 0, 10)
+            [
+                SNew(SVerticalBox)
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(0, 0, 0, 5)
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("API地址:")))
+                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
+                ]
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SAssignNew(ApiUrlTextBox, SEditableTextBox)
+                    .HintText(FText::FromString(TEXT("请输入API地址...")))
+                ]
+            ]
+            
+            // 模型选择
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0, 0, 0, 10)
+            [
+                SNew(SVerticalBox)
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                .Padding(0, 0, 0, 5)
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(TEXT("模型:")))
+                    .Font(FEditorStyle::GetFontStyle("BoldFont"))
+                ]
+                
+                + SVerticalBox::Slot()
+                .AutoHeight()
+                [
+                    SAssignNew(ModelComboBox, SComboBox<TSharedPtr<FModelInfo>>)
+                    .OptionsSource(&ModelList)
+                    .OnSelectionChanged(this, &SDeepseekAIChat::OnModelSelectionChanged)
+                    .OnGenerateWidget(this, &SDeepseekAIChat::GenerateModelComboItem)
+                    [
+                        SNew(STextBlock)
+                        .Text_Lambda([this]() {
+                            return SelectedModel.IsValid() ? FText::FromString(SelectedModel->Name) : FText::FromString(TEXT("请选择模型"));
+                        })
+                    ]
+                ]
+            ]
+            
+            // 填充空间
+            + SVerticalBox::Slot()
+            .FillHeight(1.0f)
+            
+            // 按钮
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(0, 10, 0, 0)
+            [
+                SNew(SHorizontalBox)
+                
+                + SHorizontalBox::Slot()
+                .FillWidth(1.0f)
+                
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                .Padding(0, 0, 5, 0)
+                [
+                    SNew(SButton)
+                    .Text(FText::FromString(TEXT("应用")))
+                    .OnClicked(this, &SDeepseekAIChat::OnApplySettings)
+                ]
+                
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                [
+                    SNew(SButton)
+                    .Text(FText::FromString(TEXT("取消")))
+                    .OnClicked(this, &SDeepseekAIChat::OnCancelSettings)
+                ]
+            ]
+        ]
+    );
+    
+    return Window;
 }
 
 FReply SDeepseekAIChat::OnApplySettings()
@@ -466,7 +458,7 @@ FReply SDeepseekAIChat::OnApplySettings()
     // 获取新的设置
     FString NewApiKey = ApiKeyTextBox->GetText().ToString();
     FString NewApiUrl = ApiUrlTextBox->GetText().ToString();
-    FString NewModel = SelectedModel.IsValid() ? SelectedModel->Id : TEXT("gpt-3.5-turbo");
+    FString NewModel = SelectedModel.IsValid() ? SelectedModel->Id : TEXT("deepseek-chat");
     
     // 检查是否有变化
     bool bHasChanges = (NewApiKey != CurrentApiKey) || (NewApiUrl != CurrentApiUrl) || (NewModel != CurrentModel);
@@ -486,8 +478,24 @@ FReply SDeepseekAIChat::OnApplySettings()
         ChatListView->RequestListRefresh();
     }
     
-    // 隐藏设置面板
-    bShowSettings = false;
+    // 关闭设置窗口
+    if (SettingsWindow.IsValid())
+    {
+        SettingsWindow->RequestDestroyWindow();
+        SettingsWindow.Reset();
+    }
+    
+    return FReply::Handled();
+}
+
+FReply SDeepseekAIChat::OnCancelSettings()
+{
+    // 关闭设置窗口
+    if (SettingsWindow.IsValid())
+    {
+        SettingsWindow->RequestDestroyWindow();
+        SettingsWindow.Reset();
+    }
     
     return FReply::Handled();
 }
@@ -497,6 +505,7 @@ void SDeepseekAIChat::OnModelSelectionChanged(TSharedPtr<FModelInfo> NewSelectio
     if (NewSelection.IsValid())
     {
         SelectedModel = NewSelection;
+        TempModel = SelectedModel->Id;
     }
 }
 
@@ -557,6 +566,11 @@ TSharedRef<ITableRow> SDeepseekAIChat::OnGenerateRow(TSharedPtr<FChatMessage> Me
                 ]
             ]
         ];
+}
+
+void SDeepseekAIChat::OnSettingsWindowClosed(const TSharedRef<SWindow>& Window)
+{
+    SettingsWindow.Reset();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION 
